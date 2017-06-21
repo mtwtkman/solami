@@ -1,0 +1,15 @@
+version: '2'
+services:
+  web:
+    build: .
+    environment:
+      SLACK_API_TOKEN: dummy
+      BOT_NAME: solami
+      DATABASE_URL: 'postgres://postgres:mysecretpassword@db:5432/postgres'
+    command: /app/target/release/solami
+    ports:
+      - 3000:3000
+    links:
+      - db
+  db:
+    image: postgres:alpine
