@@ -7,7 +7,7 @@ use futures::future::FutureResult;
 use hyper::header::{ContentLength, ContentType};
 use hyper::server::{Http, Service, Request, Response};
 
-static PHRASE: &'static [u8] = b"Hello World";
+static PHRASE: &'static [u8] = b"mirei";
 
 struct Hello;
 
