@@ -4,6 +4,6 @@ version = "0.1.0"
 authors = ["mtwtkman <punipuniomochi@gmail.com>"]
 
 [dependencies]
-slack-hook = "*"
+slack = "*"
 hyper = "*"
 futures = "*"

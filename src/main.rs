@@ -1,35 +1,43 @@
-#![deny(warnings)]
-extern crate hyper;
-extern crate futures;
+extern crate slack;
+use slack::{Event, RtmClient};
 
-use futures::future::FutureResult;
+struct MyHandler;
 
-use hyper::header::{ContentLength, ContentType};
-use hyper::server::{Http, Service, Request, Response};
+#[allow(unused_variables)]
+impl slack::EventHandler for MyHandler {
+    fn on_event(&mut self, cli: &RtmClient, event: Event) {
+        println!("on_event(evnet: {:?})", event);
+    }
 
-static PHRASE: &'static [u8] = b"mirei";
+    fn on_close(&mut self, cli: &RtmClient) {
+        println!("on_close");
+    }
 
-struct Hello;
-
-impl Service for Hello {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future = FutureResult<Response, hyper::Error>;
-
-    fn call(&self, _req: Request) -> Self::Future {
-        futures::future::ok(
-            Response::new()
-                .with_header(ContentLength(PHRASE.len() as u64))
-                .with_header(ContentType::plaintext())
-                .with_body(PHRASE)
-        )
+    fn on_connect(&mut self, cli: &RtmClient) {
+        println!("on_connect");
+        let general_channel_id = cli.start_response()
+            .channels
+            .as_ref()
+            .and_then(|channels| {
+                channels
+                    .iter()
+                    .find(|chan| match chan.name {
+                        None => false,
+                        Some(ref name) => name == "general",
+                    })
+            })
+            .and_then(|chan| chan.id.as_ref())
+            .expect("general channel not found");
+        let _ = cli.sender().send_message(&general_channel_id, "Hello world! (rtm)");
     }
 }
 
 fn main() {
-    let addr = "0.0.0.0:3000".parse().unwrap();
-    let server = Http::new().bind(&addr, || Ok(Hello)).unwrap();
-    println!("Listening on http://{} with 1 thread.", server.local_addr().unwrap());
-    server.run().unwrap();
+    let api_key: String = std::env::var("SLACK_API_TOKEN").unwrap();
+    let mut handler = MyHandler;
+    let r = RtmClient::login_and_run(&api_key, &mut handler);
+    match r {
+        Ok(_) => {}
+        Err(err) => panic!("Error: {}", err),
+    }
 }

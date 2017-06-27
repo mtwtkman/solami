@@ -1,15 +1,22 @@
-version: '3'
+version: '2'
 services:
   web:
     build: .
     environment:
-      SLACK_API_TOKEN: dummy
+      SLACK_API_TOKEN: please-input
       BOT_NAME: solami
       DATABASE_URL: 'postgres://postgres:mysecretpassword@db:5432/postgres'
-    command: /app/target/release/solami
+    command: cargo run
+    volumes:
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - ./src:/app/src
+      - target:/app/target
     ports:
       - 3000:3000
     links:
       - db
   db:
     image: postgres:alpine
+volumes:
+  target:
