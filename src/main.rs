@@ -1,14 +1,16 @@
 extern crate slack;
 extern crate slack_api;
-
-mod handlers;
+extern crate regex;
 
 use std::clone::Clone;
 use std::collections::HashMap;
 use slack::{Event, RtmClient, Message, User};
 use slack_api::users::{list, ListError, ListRequest};
 use slack_api::requests::{Client};
-use handlers::{echo};
+use regex::Regex;
+
+mod handlers;
+use handlers::{Params, echo};
 
 type Users = HashMap<String, User>;
 
@@ -22,7 +24,20 @@ impl slack::EventHandler for MyHandler {
         println!("on_event(event: {:?})", event);
         if let Event::Message(message) = event {
             if let Message::Standard(message_standard) = *message {
-                echo::handle(message_standard);
+                let re = Regex::new(r"!(?P<command>\w+)\s+(?P<pattern>\w+)").unwrap();
+                re.captures(&message_standard.text.as_ref().unwrap())
+                    .map_or_else(|| {}, |ref caps| {
+                        let user = &message_standard.user.as_ref().unwrap();
+                        let channel_id = &message_standard.channel.as_ref().unwrap();
+                        let pattern = &caps["pattern"];
+                        let p = Params {user: &user, pattern: pattern, channel_id: channel_id};
+                        match &caps["command"] {
+                            "echo" => {
+                                echo::handle(&p);
+                            },
+                            _ => println!("Unknown command."),
+                        }
+                    });
             }
         }
     }

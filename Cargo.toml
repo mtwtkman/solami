@@ -6,4 +6,4 @@ authors = ["mtwtkman <punipuniomochi@gmail.com>"]
 [dependencies]
 slack = "0.18"
 slack_api = "0.17"
-futures = "0.1"
+regex = "0.2"
