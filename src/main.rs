@@ -10,12 +10,13 @@ use slack_api::requests::{Client};
 use regex::Regex;
 
 mod handlers;
-use handlers::{Params, echo};
+use handlers::{SolamiHandler, echo};
 
 type Users = HashMap<String, User>;
 
 struct MyHandler {
     users: Users,
+    me: User,
 }
 
 #[allow(unused_variables)]
@@ -24,16 +25,24 @@ impl slack::EventHandler for MyHandler {
         println!("on_event(event: {:?})", event);
         if let Event::Message(message) = event {
             if let Message::Standard(message_standard) = *message {
+                let user = &message_standard.user.as_ref().unwrap();
+                if **user == *self.me.id.as_ref().unwrap() {
+                    println!("bot saied");
+                    return
+                }
                 let re = Regex::new(r"!(?P<command>\w+)\s+(?P<pattern>\w+)").unwrap();
                 re.captures(&message_standard.text.as_ref().unwrap())
                     .map_or_else(|| {}, |ref caps| {
-                        let user = &message_standard.user.as_ref().unwrap();
                         let channel_id = &message_standard.channel.as_ref().unwrap();
                         let pattern = &caps["pattern"];
-                        let p = Params {user: &user, pattern: pattern, channel_id: channel_id};
+                        let handler = SolamiHandler {
+                            sender: cli.sender(),
+                            pattern: pattern,
+                            channel_id: channel_id
+                        };
                         match &caps["command"] {
                             "echo" => {
-                                echo::handle(&p);
+                                echo::handle(&handler);
                             },
                             _ => println!("Unknown command."),
                         }
@@ -51,31 +60,22 @@ impl slack::EventHandler for MyHandler {
     }
 }
 
-fn users(api_key: &String) -> Result<Users, ListError<slack_api::requests::Error>>  {
-    let client = Client::new().unwrap();
-    let list_request = ListRequest { presence: Some(true) };
-    list(&client, &api_key, &list_request).and_then(|response| {
-        let mut users_map: Users = HashMap::new();
-        for member in response.members.into_iter().flat_map(Vec::into_iter) {
-            let id = member.id.as_ref().unwrap().clone();
-            users_map.insert(id, member);
-        }
-        Ok(users_map)
-    })
-}
-
 fn main() {
     let api_key: String = std::env::var("SLACK_API_TOKEN").unwrap();
     let r = RtmClient::login(&api_key);
     match r {
         Ok(client) => {
-            match users(&api_key) {
-                Ok(users_map) => {
-                    let mut handler = MyHandler { users: users_map };
-                    client.run(&mut handler);
-                },
-                Err(err) => println!("{}", err),
+            let start_response = &client.start_response();
+            let mut users: Users = HashMap::new();
+            for user in start_response.users.as_ref().unwrap().into_iter() {
+                let id = user.id.as_ref().unwrap().clone();
+                users.insert(id, user.clone());
             }
+            let mut handler = MyHandler {
+                users: users,
+                me: start_response.slf.as_ref().unwrap().clone(),
+            };
+            client.run(&mut handler);
         },
         Err(err) => panic!("Error: {}", err),
     }

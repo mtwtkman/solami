@@ -1,5 +1,11 @@
-use super::Params;
+extern crate slack;
 
-pub fn handle(p: &Params) {
-    println!("{} said {}@{}", p.user, p.pattern, p.channel_id);
+use super::SolamiHandler;
+
+pub fn handle(p: &SolamiHandler) {
+    if let Ok(resp) = p.send() {
+        println!("ok");
+    } else {
+        println!("fail");
+    }
 }
