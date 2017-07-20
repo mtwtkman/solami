@@ -7,3 +7,4 @@ authors = ["mtwtkman <punipuniomochi@gmail.com>"]
 slack = "0.18"
 slack_api = "0.17"
 regex = "0.2"
+postgres="0.14"

@@ -1,22 +1,24 @@
 extern crate slack;
 extern crate slack_api;
 extern crate regex;
+extern crate postgres;
 
 use std::clone::Clone;
 use std::collections::HashMap;
 use slack::{Event, RtmClient, Message, User};
-use slack_api::users::{list, ListError, ListRequest};
-use slack_api::requests::{Client};
 use regex::Regex;
+use postgres::{Connection, TlsMode};
 
 mod handlers;
-use handlers::{SolamiHandler, echo};
+use handlers::{SolamiHandler, Users, yamabiko, inc};
 
-type Users = HashMap<String, User>;
+mod db;
+use db::Setup;
 
 struct MyHandler {
     users: Users,
     me: User,
+    pg_connection: Connection,
 }
 
 #[allow(unused_variables)]
@@ -30,21 +32,23 @@ impl slack::EventHandler for MyHandler {
                     println!("bot saied");
                     return
                 }
-                let re = Regex::new(r"!(?P<command>\w+)\s+(?P<pattern>\w+)").unwrap();
+                let re = Regex::new(r"(^(?P<inc_name>^\w+)\+\+\s*$|!(?P<command>\w+)\s+(?P<body>.+))").unwrap();
                 re.captures(&message_standard.text.as_ref().unwrap())
-                    .map_or_else(|| {}, |ref caps| {
-                        let channel_id = &message_standard.channel.as_ref().unwrap();
-                        let pattern = &caps["pattern"];
+                    .map_or_else(|| {}, |caps| {
                         let handler = SolamiHandler {
                             sender: cli.sender(),
-                            pattern: pattern,
-                            channel_id: channel_id
+                            body: &caps.name("body").map_or("", |m| m.as_str()),
+                            channel_id: &message_standard.channel.as_ref().unwrap(),
                         };
-                        match &caps["command"] {
-                            "echo" => {
-                                echo::handle(&handler);
-                            },
-                            _ => println!("Unknown command."),
+                        if let Some(inc_name) = caps.name("inc_name") {
+                            inc::handle(handler, inc_name.as_str(), &self.pg_connection);
+                        } else {
+                            match &caps["command"] {
+                                "yamabiko" => {
+                                    yamabiko::handle(handler);
+                                },
+                                _ => println!("Unknown command."),
+                            }
                         }
                     });
             }
@@ -61,8 +65,14 @@ impl slack::EventHandler for MyHandler {
 }
 
 fn main() {
-    let api_key: String = std::env::var("SLACK_API_TOKEN").unwrap();
+    let api_key = std::env::var("SLACK_API_TOKEN").unwrap();
     let r = RtmClient::login(&api_key);
+    let db_url = std::env::var("DATABASE_URL").unwrap();
+    let conn = Connection::connect(&*db_url, TlsMode::None).unwrap();
+    match db::inc::D::setup(&conn) {
+        Ok(r) => println!("created increments table."),
+        Err(e) => println!("failed to create increments table. ERROR: {}", e),
+    }
     match r {
         Ok(client) => {
             let start_response = &client.start_response();
@@ -74,6 +84,7 @@ fn main() {
             let mut handler = MyHandler {
                 users: users,
                 me: start_response.slf.as_ref().unwrap().clone(),
+                pg_connection: conn,
             };
             client.run(&mut handler);
         },
