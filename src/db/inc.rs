@@ -4,9 +4,15 @@ use postgres::Connection;
 use postgres::rows::Rows;
 use super::{Setup, Insert, Update, Select};
 
+pub enum Sign {
+    Inc,
+    Dec,
+}
+
 pub struct D {
     pub user_name: String,
     pub count: i32,
+    pub sign: Sign,
 }
 
 impl Setup for D {
@@ -33,12 +39,18 @@ impl Select for D {
 impl Update for D {
     // NOTE: actually UPSERT
     fn update(&self, pg: &Connection) -> postgres::Result<u64> {
-        pg.execute("
+        let sign;
+        match self.sign {
+            Sign::Inc => sign = "+",
+            Sign::Dec => sign = "-",
+        }
+        let sql = format!("
             INSERT INTO increments VALUES ($1)
             ON CONFLICT
             ON CONSTRAINT increments_pkey
-            DO UPDATE SET count = increments.count + 1
+            DO UPDATE SET count = increments.count {} 1
             ;
-        ", &[&self.user_name])
+        ", sign);
+        pg.execute(sql.as_str(), &[&self.user_name])
     }
 }

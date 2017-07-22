@@ -32,7 +32,7 @@ impl slack::EventHandler for MyHandler {
                     println!("bot saied");
                     return
                 }
-                let re = Regex::new(r"(^(?P<inc_name>^\w+)\+\+\s*$|!(?P<command>\w+)\s+(?P<body>.+))").unwrap();
+                let re = Regex::new(r"(^(?P<target>^\w+)(?P<sign>(\+\+|\-\-|\?))\s*$|!(?P<command>\w+)\s+(?P<body>.+))").unwrap();
                 re.captures(&message_standard.text.as_ref().unwrap())
                     .map_or_else(|| {}, |caps| {
                         let handler = SolamiHandler {
@@ -40,8 +40,8 @@ impl slack::EventHandler for MyHandler {
                             body: &caps.name("body").map_or("", |m| m.as_str()),
                             channel_id: &message_standard.channel.as_ref().unwrap(),
                         };
-                        if let Some(inc_name) = caps.name("inc_name") {
-                            inc::handle(handler, inc_name.as_str(), &self.pg_connection);
+                        if let Some(target) = caps.name("target") {
+                            inc::handle(handler, target.as_str(), &caps["sign"], &self.pg_connection);
                         } else {
                             match &caps["command"] {
                                 "yamabiko" => {
