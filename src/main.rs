@@ -10,7 +10,7 @@ use regex::Regex;
 use postgres::{Connection, TlsMode};
 
 mod handlers;
-use handlers::{SolamiHandler, Users, yamabiko, inc};
+use handlers::{SolamiHandler, Users, inc, echo};
 
 mod db;
 use db::Setup;
@@ -21,7 +21,6 @@ struct MyHandler {
     pg_connection: Connection,
 }
 
-#[allow(unused_variables)]
 impl slack::EventHandler for MyHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
         println!("on_event(event: {:?})", event);
@@ -37,15 +36,20 @@ impl slack::EventHandler for MyHandler {
                     .map_or_else(|| {}, |caps| {
                         let handler = SolamiHandler {
                             sender: cli.sender(),
-                            body: &caps.name("body").map_or("", |m| m.as_str()),
                             channel_id: &message_standard.channel.as_ref().unwrap(),
                         };
                         if let Some(target) = caps.name("target") {
-                            inc::handle(handler, target.as_str(), &caps["sign"], &self.pg_connection);
+                            inc::handle(&handler, target.as_str(), &caps["sign"], &self.pg_connection);
                         } else {
                             match &caps["command"] {
-                                "yamabiko" => {
-                                    yamabiko::handle(handler);
+                                "echo" => {
+                                    let mut splited = caps["body"].split_whitespace();
+                                    let cmd = splited.next().unwrap();
+                                    let mut rest = Vec::new();
+                                    for s in splited {
+                                        rest.push(s);
+                                    }
+                                    echo::handle(&handler, cmd, rest.join(" ").as_str());
                                 },
                                 _ => println!("Unknown command."),
                             }
@@ -70,7 +74,7 @@ fn main() {
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let conn = Connection::connect(&*db_url, TlsMode::None).unwrap();
     match db::inc::D::setup(&conn) {
-        Ok(r) => println!("created increments table."),
+        Ok(_) => println!("created increments table."),
         Err(e) => println!("failed to create increments table. ERROR: {}", e),
     }
     match r {

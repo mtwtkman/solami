@@ -2,7 +2,7 @@ extern crate postgres;
 
 use postgres::Connection;
 use postgres::rows::Rows;
-use super::{Setup, Insert, Update, Select};
+use super::{Setup, Update, Select};
 
 pub enum Sign {
     Inc,
