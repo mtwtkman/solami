@@ -18,17 +18,13 @@ pub fn handle<'a>(p: SolamiHandler, target: &'a str, sign: &'a str, pg: &Connect
     let mut obj = D { user_name: target.to_owned(), count: 0, sign: s };
 
     obj.select(pg).map(|rows| {
-        match rows.is_empty() {
-            true => {},
-            false => obj.count = rows.get(0).get(0),
-        }
+        if !rows.is_empty() { obj.count = rows.get(0).get(0); }
+        if sign == "++" { obj.count += 1; } else { obj.count -= 1; }
         match obj.update(pg) {
             Ok(r) => {
-                if sign == "++" { obj.count += 1; }
-                else { obj.count -= 1; }
                 println!("updated.");
                 p.send_with_body(
-                    format!("{}は{}です。", target, obj.count).as_str()
+                    format!("{}さんの徳は現在{}です。", target, obj.count).as_str()
                 ).map_err(|e| {
                     println!("error occurred with `send_with_body`! ERROR: {}", e);
                 });

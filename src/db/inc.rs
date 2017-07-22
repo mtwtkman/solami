@@ -45,12 +45,12 @@ impl Update for D {
             Sign::Dec => sign = "-",
         }
         let sql = format!("
-            INSERT INTO increments VALUES ($1)
+            INSERT INTO increments VALUES ($1, $2)
             ON CONFLICT
             ON CONSTRAINT increments_pkey
             DO UPDATE SET count = increments.count {} 1
             ;
         ", sign);
-        pg.execute(sql.as_str(), &[&self.user_name])
+        pg.execute(sql.as_str(), &[&self.user_name, &self.count])
     }
 }
