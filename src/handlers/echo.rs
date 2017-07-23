@@ -4,20 +4,20 @@ extern crate postgres;
 use std::collections::HashMap;
 use postgres::Connection;
 use super::SolamiHandler;
-use db::Insert;
+use db::{Insert, Update, Query, Select};
 use db::echo::D;
 
 pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str, pg: &Connection) {
     let body = match cmd {
         "help" => help(rest),
         "create" => create(rest, pg),
-        // "update" => "update",
-        // "show" => "show",
-        // "list" => "list",
+        "update" => update(rest, pg),
+        "show" => show(rest, pg),
+        "list" => list(pg),
         // "find" => "find",
         // "delete" => "delete",
         _ => {
-            println!("Unknown cmd");
+            println!("Unknown command");
             return;
         },
     };
@@ -120,10 +120,103 @@ fn create(rest: &str, pg: &Connection) -> Result<String, ()> {
     match obj.insert(pg) {
         Ok(_) => {
             println!("[echo] created.");
-            Ok("登録しました〜".to_owned())
+            Ok("登録しました".to_owned())
         },
         Err(e) => {
             println!("[echo] failed to create. ERROR: {}", e);
+            Err(())
+        }
+    }
+}
+
+fn update(rest: &str, pg: &Connection) -> Result<String, ()> {
+    let mut splited = rest.split_whitespace();
+    let mut obj: D = Default::default();
+
+    if let Some(name) = splited.next() {
+        obj.name = name.to_owned();
+    } else {
+        return Err(());
+    }
+
+    if let Some(pattern) = splited.next() {
+        obj.pattern = pattern.to_owned();
+    } else {
+        return Err(());
+    }
+
+    if let Some(response) = splited.next() {
+        obj.response = response.to_owned();
+    } else {
+        return Err(());
+    }
+
+    match obj.update(pg) {
+        Ok(_) => {
+            println!("[echo] updated.");
+            Ok("更新しました".to_owned())
+        },
+        Err(e) => {
+            println!("[echo] failed to update. ERROR: {}", e);
+            Err(())
+        }
+    }
+}
+
+fn show(rest: &str, pg: &Connection) -> Result<String, ()> {
+    let mut splited = rest.split_whitespace();
+    let mut query: Query = HashMap::new();
+    let obj: D = Default::default();
+
+    if let Some(name) = splited.next() {
+        query.insert("name", name);
+    } else {
+        return Err(());
+    }
+
+    match obj.select(pg, Some(query)) {
+        Ok(rows) => {
+            let mut response: String = String::new();
+            if rows.is_empty() {
+                response.push_str("見つかりませんでした");
+            } else {
+                let selected = rows.get(0);
+                response = [
+                    format!("名称: {}", selected.get::<&str, String>("name")).as_str(),
+                    format!("パターン: {}", selected.get::<&str, String>("pattern")).as_str(),
+                    format!("返答: {}", selected.get::<&str, String>("response")).as_str(),
+                ].join("\n");
+            }
+            println!("[echo] selected.");
+            Ok(response)
+        },
+        Err(e) => {
+            println!("[echo] failed to select. ERROR: {}", e);
+            Err(())
+        }
+    }
+}
+
+fn list(pg: &Connection) -> Result<String, ()> {
+    let obj: D = Default::default();
+    match obj.select(pg, None) {
+        Ok(rows) => {
+            let mut response = vec!["名称: パターン -> 返答".to_owned()];
+            for row in rows.iter() {
+                response.push(
+                    format!(
+                        "{}: {} -> {}",
+                        row.get::<&str, String>("name").as_str(),
+                        row.get::<&str, String>("pattern").as_str(),
+                        row.get::<&str, String>("response").as_str(),
+                    ),
+                )
+            }
+            println!("[echo] listed");
+            Ok(response.iter().map(|x| x.as_str()).collect::<Vec<&str>>().as_slice().join("\n"))
+        },
+        Err(e) => {
+            println!("[echo] failed to list. ERROR: {}", e);
             Err(())
         }
     }

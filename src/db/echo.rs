@@ -45,17 +45,17 @@ impl Select for D {
     fn select(&self, pg: &Connection, query: Option<Query>) -> postgres::Result<Rows<'static>> {
         let q = match query {
             Some(m) => {
-                let mut query_strings: Vec<String> = vec!["WHERE".to_owned()];
+                let mut query_strings: Vec<String> = vec![];
                 for (k, v) in m.iter() {
-                    query_strings.push(format!("{}={}", k, v));
+                    query_strings.push(format!("{}='{}'", k, v));
                 }
 
-                query_strings.iter().map(|v| v.as_str()).collect::<Vec<&str>>().as_slice().join(" AND ")
+                let ands = query_strings.iter().map(|v| v.as_str()).collect::<Vec<&str>>().as_slice().join(" AND ");
+                "WHERE ".to_owned() + &*ands
             },
             None => "".to_owned(),
         };
-        let sql = format!("SELECT * FROM echos {};", q.to_owned());
-        pg.query(sql.as_str(), &[&self.name]
-        )
+        let sql = format!("SELECT name, pattern, response FROM echos {};", q);
+        pg.query(sql.as_str(), &[])
     }
 }
