@@ -15,20 +15,20 @@ pub fn handle<'a>(p: &SolamiHandler, target: &'a str, sign: &'a str, pg: &Connec
     }
     let mut obj = D { user_name: target.to_owned(), count: 0, sign: s };
 
-    let _ = obj.select(pg).map(|rows| {
+    let _ = obj.select(pg, None).map(|rows| {
         if !rows.is_empty() { obj.count = rows.get(0).get(0); }
         if sign == "++" { obj.count += 1; } else { obj.count -= 1; }
         match obj.update(pg) {
             Ok(_) => {
-                println!("updated.");
+                println!("[inc] updated.");
                 p.send(
                     format!("{}さんの徳は現在{}です。", target, obj.count).as_str()
                 ).map_err(|e| {
-                    println!("error occurred with `send_with_body`! ERROR: {}", e);
+                    println!("[inc] error occurred with `send_with_body`! ERROR: {}", e);
                 });
             },
             Err(e) => {
-                println!("failed to updated. ERROR: {}", e);
+                println!("[inc] failed to update. ERROR: {}", e);
             }
         }
     })

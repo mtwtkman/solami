@@ -49,7 +49,7 @@ impl slack::EventHandler for MyHandler {
                                     for s in splited {
                                         rest.push(s);
                                     }
-                                    echo::handle(&handler, cmd, rest.join(" ").as_str());
+                                    echo::handle(&handler, cmd, rest.join(" ").as_str(), &self.pg_connection);
                                 },
                                 _ => println!("Unknown command."),
                             }
@@ -76,6 +76,10 @@ fn main() {
     match db::inc::D::setup(&conn) {
         Ok(_) => println!("created increments table."),
         Err(e) => println!("failed to create increments table. ERROR: {}", e),
+    }
+    match db::echo::D::setup(&conn) {
+        Ok(_) => println!("created echos table."),
+        Err(e) => println!("failed to create echos table. ERROR: {}", e),
     }
     match r {
         Ok(client) => {

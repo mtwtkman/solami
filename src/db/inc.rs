@@ -2,7 +2,7 @@ extern crate postgres;
 
 use postgres::Connection;
 use postgres::rows::Rows;
-use super::{Setup, Update, Select};
+use super::{Setup, Update, Select, Query};
 
 pub enum Sign {
     Inc,
@@ -28,7 +28,7 @@ impl Setup for D {
 }
 
 impl Select for D {
-    fn select(&self, pg: &Connection) -> postgres::Result<Rows<'static>> {
+    fn select(&self, pg: &Connection, _: Option<Query>) -> postgres::Result<Rows<'static>> {
         pg.query(
             "SELECT count FROM increments WHERE user_name = $1;",
             &[&self.user_name]

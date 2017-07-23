@@ -8,5 +8,6 @@ case $cmd in
   "b")  docker-compose exec web cargo build;;
   "bi")  docker-compose run web cargo build;;
   "sh") docker-compose exec web /bin/sh;;
+  "pg") docker-compose exec db psql -U postgres;;
   *) docker-compose ${cmd};;
 esac

@@ -1,13 +1,16 @@
 extern crate slack;
 extern crate postgres;
 
+use std::collections::HashMap;
 use postgres::Connection;
 use super::SolamiHandler;
+use db::Insert;
+use db::echo::D;
 
-pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str) {
+pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str, pg: &Connection) {
     let body = match cmd {
         "help" => help(rest),
-        // "create" => "create",
+        "create" => create(rest, pg),
         // "update" => "update",
         // "show" => "show",
         // "list" => "list",
@@ -18,10 +21,12 @@ pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str) {
             return;
         },
     };
-    p.send(body.as_str());
+    if let Ok(b) = body {
+        p.send(b.as_str());
+    }
 }
 
-fn help(option: &str) -> String {
+fn help(option: &str) -> Result<String, ()> {
     let body = match option {
         "create" => vec![
             ":apple: `!echo create`",
@@ -87,5 +92,39 @@ fn help(option: &str) -> String {
             "例) `!echo help create`",
         ]
     };
-    body.as_slice().join("\n")
+    Ok(body.as_slice().join("\n"))
+}
+
+fn create(rest: &str, pg: &Connection) -> Result<String, ()> {
+    let mut splited = rest.split_whitespace();
+    let mut obj: D = Default::default();
+
+    if let Some(name) = splited.next() {
+        obj.name = name.to_owned();
+    } else {
+        return Err(());
+    }
+
+    if let Some(pattern) = splited.next() {
+        obj.pattern = pattern.to_owned();
+    } else {
+        return Err(());
+    }
+
+    if let Some(response) = splited.next() {
+        obj.response = response.to_owned();
+    } else {
+        return Err(());
+    }
+
+    match obj.insert(pg) {
+        Ok(_) => {
+            println!("[echo] created.");
+            Ok("登録しました〜".to_owned())
+        },
+        Err(e) => {
+            println!("[echo] failed to create. ERROR: {}", e);
+            Err(())
+        }
+    }
 }

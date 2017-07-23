@@ -1,16 +1,20 @@
 extern crate postgres;
 
+use std::collections::HashMap;
 use postgres::Connection;
 use postgres::rows::Rows;
 
 pub mod inc;
+pub mod echo;
 
 pub trait Setup {
     fn setup(&Connection) -> postgres::Result<u64>;
 }
 
+pub type Query<'a> = HashMap<&'a str, &'a str>;
+
 pub trait Select {
-    fn select(&self, &Connection) -> postgres::Result<Rows<'static>>;
+    fn select(&self, &Connection, Option<Query>) -> postgres::Result<Rows<'static>>;
 }
 
 pub trait Insert {
