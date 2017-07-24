@@ -100,7 +100,7 @@ fn formatter<'a>(text: &'a str) -> String {
     let re = regex::Regex::new(r"<(https?://[^>]+?)>").unwrap();
     match re.captures(text) {
         Some(caps) => String::from(&caps[1]),
-        None => String::from(""),
+        None => String::from(text),
     }
 }
 
