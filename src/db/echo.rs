@@ -17,7 +17,8 @@ impl Setup for D {
             CREATE TABLE IF NOT EXISTS echos (
                 name     text PRIMARY KEY,
                 pattern  text NOT NULL,
-                response text NOT NULL
+                response text NOT NULL,
+                UNIQUE(pattern)
             )
             ;
         ", &[])

@@ -14,7 +14,7 @@ pub struct SolamiHandler<'a> {
 pub type Users = HashMap<String, User>;
 
 impl<'a> SolamiHandler<'a> {
-    fn send(&self, body: &'a str) -> Result<usize, slack::error::Error> {
+    pub fn send(&self, body: &'a str) -> Result<usize, slack::error::Error> {
         self.sender.send_message(self.channel_id, body)
     }
 }

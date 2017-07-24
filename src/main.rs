@@ -5,7 +5,7 @@ extern crate postgres;
 
 use std::clone::Clone;
 use std::collections::HashMap;
-use slack::{Event, RtmClient, Message, User};
+use slack::{Event, RtmClient, Message, User, Sender};
 use regex::Regex;
 use postgres::{Connection, TlsMode};
 
@@ -21,6 +21,22 @@ struct MyHandler {
     pg_connection: Connection,
 }
 
+fn message_filter(p: &SolamiHandler, text: &String, pg: &Connection) {
+    // echo filter
+    match pg.query(
+        "SELECT response FROM echos WHERE $1 ~ pattern LIMIT 1;",
+        &[&text.as_str()]
+    ) {
+        Ok(rows) => {
+            if rows.is_empty() { return; }
+            let response: String = rows.get(0).get("response");
+            println!("found response: {} -> {}", text, response);
+            p.send(response.as_str());
+        },
+        Err(e) => { println!("{}", e) }
+    }
+}
+
 impl slack::EventHandler for MyHandler {
     fn on_event(&mut self, cli: &RtmClient, event: Event) {
         println!("on_event(event: {:?})", event);
@@ -32,29 +48,38 @@ impl slack::EventHandler for MyHandler {
                     return
                 }
                 let re = Regex::new(r"(^(?P<target>^\w+)(?P<sign>(\+\+|\-\-|\?))\s*$|!(?P<command>\w+)\s+(?P<body>.+))").unwrap();
-                re.captures(&message_standard.text.as_ref().unwrap())
-                    .map_or_else(|| {}, |caps| {
-                        let handler = SolamiHandler {
-                            sender: cli.sender(),
-                            channel_id: &message_standard.channel.as_ref().unwrap(),
-                        };
-                        if let Some(target) = caps.name("target") {
-                            inc::handle(&handler, target.as_str(), &caps["sign"], &self.pg_connection);
-                        } else {
-                            match &caps["command"] {
-                                "echo" => {
-                                    let mut splited = caps["body"].split_whitespace();
-                                    let cmd = splited.next().unwrap();
-                                    let mut rest = Vec::new();
-                                    for s in splited {
-                                        rest.push(s);
+                let text = &message_standard.text.as_ref().unwrap();
+                let handler = SolamiHandler {
+                    sender: cli.sender(),
+                    channel_id: &message_standard.channel.as_ref().unwrap(),
+                };
+                re.captures(text)
+                    .map_or_else(
+                        || {
+                            println!("cannot capture.");
+                            message_filter(&handler, text, &self.pg_connection);
+                        },
+                        |caps| {
+                            if let Some(target) = caps.name("target") {
+                                inc::handle(&handler, target.as_str(), &caps["sign"], &self.pg_connection);
+                            } else {
+                                match &caps["command"] {
+                                    "echo" => {
+                                        let mut splited = caps["body"].split_whitespace();
+                                        let cmd = splited.next().unwrap();
+                                        let mut rest = Vec::new();
+                                        for s in splited {
+                                            rest.push(s);
+                                        }
+                                        echo::handle(&handler, cmd, rest.join(" ").as_str(), &self.pg_connection);
+                                    },
+                                    _ => {
+                                        println!("unknown message pattern.");
                                     }
-                                    echo::handle(&handler, cmd, rest.join(" ").as_str(), &self.pg_connection);
-                                },
-                                _ => println!("Unknown command."),
+                                }
                             }
                         }
-                    });
+                );
             }
         }
     }

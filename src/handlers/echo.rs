@@ -1,3 +1,4 @@
+extern crate regex;
 extern crate slack;
 extern crate postgres;
 
@@ -95,6 +96,14 @@ fn help(option: &str) -> Result<String, ()> {
     Ok(body.as_slice().join("\n"))
 }
 
+fn formatter<'a>(text: &'a str) -> String {
+    let re = regex::Regex::new(r"<(https?://[^>]+?)>").unwrap();
+    match re.captures(text) {
+        Some(caps) => String::from(&caps[1]),
+        None => String::from(""),
+    }
+}
+
 fn create(rest: &str, pg: &Connection) -> Result<String, ()> {
     let mut splited = rest.split_whitespace();
     let mut obj: D = Default::default();
@@ -112,7 +121,7 @@ fn create(rest: &str, pg: &Connection) -> Result<String, ()> {
     }
 
     if let Some(response) = splited.next() {
-        obj.response = response.to_owned();
+        obj.response = formatter(response);
     } else {
         return Err(());
     }
@@ -146,7 +155,7 @@ fn update(rest: &str, pg: &Connection) -> Result<String, ()> {
     }
 
     if let Some(response) = splited.next() {
-        obj.response = response.to_owned();
+        obj.response = formatter(response);
     } else {
         return Err(());
     }
