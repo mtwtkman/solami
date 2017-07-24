@@ -60,3 +60,9 @@ impl Select for D {
         pg.query(sql.as_str(), &[])
     }
 }
+
+impl Delete for D {
+    fn delete(&self, pg: &Connection) -> postgres::Result<u64> {
+        pg.execute("DELETE FROM echos WHERE name = $1;", &[&self.name])
+    }
+}

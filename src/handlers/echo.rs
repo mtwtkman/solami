@@ -5,7 +5,7 @@ extern crate postgres;
 use std::collections::HashMap;
 use postgres::Connection;
 use super::SolamiHandler;
-use db::{Insert, Update, Query, Select};
+use db::{Insert, Update, Query, Select, Delete};
 use db::echo::D;
 
 pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str, pg: &Connection) {
@@ -16,7 +16,7 @@ pub fn handle<'a>(p: &SolamiHandler, cmd: &'a str, rest: &'a str, pg: &Connectio
         "show" => show(rest, pg),
         "list" => list(pg),
         // "find" => "find",
-        // "delete" => "delete",
+        "delete" => delete(rest, pg),
         _ => {
             println!("Unknown command");
             return;
@@ -226,6 +226,24 @@ fn list(pg: &Connection) -> Result<String, ()> {
         },
         Err(e) => {
             println!("[echo] failed to list. ERROR: {}", e);
+            Err(())
+        }
+    }
+}
+
+fn delete(name: &str, pg: &Connection) -> Result<String, ()> {
+    let obj = D {
+        name: name.to_owned(),
+        pattern: "".to_owned(),
+        response: "".to_owned(),
+    };
+    match obj.delete(pg) {
+        Ok(_) => {
+            println!("[echo] deleted.");
+            Ok("削除しました".to_owned())
+        },
+        Err(e) => {
+            println!("[echo] failed to delete. ERROR: {}", e);
             Err(())
         }
     }
