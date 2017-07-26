@@ -5,6 +5,7 @@ use slack::{Sender, User};
 
 pub mod inc;
 pub mod echo;
+pub mod rss;
 
 pub struct SolamiHandler<'a> {
     pub sender: &'a Sender,

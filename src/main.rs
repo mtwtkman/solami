@@ -10,7 +10,7 @@ use regex::Regex;
 use postgres::{Connection, TlsMode};
 
 mod handlers;
-use handlers::{SolamiHandler, Users, inc, echo};
+use handlers::{SolamiHandler, Users, inc, echo, rss};
 
 mod db;
 use db::Setup;
@@ -35,6 +35,16 @@ fn message_filter(p: &SolamiHandler, text: &String, pg: &Connection) {
         },
         Err(e) => { println!("{}", e) }
     }
+}
+
+fn parse_command(s: &str) -> (String, String) {
+    let mut splited = s.split_whitespace();
+    let cmd = String::from(splited.next().unwrap());
+    let mut rest = Vec::new();
+    for s in splited {
+        rest.push(s);
+    }
+    (cmd, rest.join(" "))
 }
 
 impl slack::EventHandler for MyHandler {
@@ -63,20 +73,16 @@ impl slack::EventHandler for MyHandler {
                             if let Some(target) = caps.name("target") {
                                 inc::handle(&handler, target.as_str(), &caps["sign"], &self.pg_connection);
                             } else {
-                                match &caps["command"] {
-                                    "echo" => {
-                                        let mut splited = caps["body"].split_whitespace();
-                                        let cmd = splited.next().unwrap();
-                                        let mut rest = Vec::new();
-                                        for s in splited {
-                                            rest.push(s);
-                                        }
-                                        echo::handle(&handler, cmd, rest.join(" ").as_str(), &self.pg_connection);
-                                    },
+                                let h = match &caps["command"] {
+                                    "echo" => echo::handle,
+                                    "rss" => rss::handle,
                                     _ => {
                                         println!("unknown message pattern.");
+                                        return;
                                     }
-                                }
+                                };
+                                let (cmd, body) = parse_command(&caps["body"]);
+                                h(&handler, cmd.as_str(), body.as_str(), &self.pg_connection);
                             }
                         }
                 );
