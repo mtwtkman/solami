@@ -112,6 +112,10 @@ fn main() {
         Ok(_) => println!("created echos table."),
         Err(e) => println!("failed to create echos table. ERROR: {}", e),
     }
+    match db::rss::D::setup(&conn) {
+        Ok(_) => println!("created rsses table."),
+        Err(e) => println!("failed to create echos table. ERROR: {}", e),
+    }
     match r {
         Ok(client) => {
             let start_response = &client.start_response();

@@ -6,6 +6,7 @@ use postgres::rows::Rows;
 
 pub mod inc;
 pub mod echo;
+pub mod rss;
 
 pub trait Setup {
     fn setup(&Connection) -> postgres::Result<u64>;
